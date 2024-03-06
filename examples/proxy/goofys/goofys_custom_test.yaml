@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: goofys-test
+  namespace: default
+spec:
+  terminationGracePeriodSeconds: 0
+  containers:
+  - name: starter
+    image: ubuntu:latest
+    imagePullPolicy: IfNotPresent
+    command: ["/bin/bash"]
+    args: ["-c", "apt-get update && apt-get install -y fuse wget curl nano && wget https://github.com/kahing/goofys/releases/latest/download/goofys && chmod +x goofys && mv goofys /usr/local/bin/goofys && mkdir -p /mymnt && sleep infinity"]
+    # Run goofys -f fah-public-data-covid19-cryptic-pockets /mymnt
+    env:
+    - name: FUSERMOUNT3PROXY_FDPASSING_SOCKPATH
+      value: "/fusermount3-proxy/fuse-csi-ephemeral.sock"
+    - name: AWS_ACCESS_KEY_ID
+      value: "xxxx"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "xxxx"
+    volumeMounts:
+    - name: fuse-fd-passing
+      mountPath: /fusermount3-proxy
+  - image: busybox
+    name: busybox
+    command: ["sleep"]
+    args: ["infinity"]
+    volumeMounts:
+    - name: fuse-csi-ephemeral
+      mountPath: /data
+      readOnly: true
+      mountPropagation: HostToContainer # TODO: need to validate in csi driver?
+  volumes:
+  - name: fuse-fd-passing
+    emptyDir: {}
+  - name: fuse-csi-ephemeral
+    csi:
+      driver: meta-fuse-csi-plugin.csi.storage.pfn.io
+      readOnly: true
+      volumeAttributes:
+        fdPassingEmptyDirName: fuse-fd-passing
+        fdPassingSocketName: fuse-csi-ephemeral.sock
